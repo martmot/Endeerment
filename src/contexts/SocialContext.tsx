@@ -70,6 +70,16 @@ function byGardenSize(a: PublicProfile, b: PublicProfile) {
   return a.display_name.localeCompare(b.display_name)
 }
 
+function getFriendIdsFromRequests(requests: FriendRequestRecord[], currentUserId: string) {
+  return requests
+    .filter(
+      (row) =>
+        row.status === 'accepted' &&
+        (row.sender_id === currentUserId || row.receiver_id === currentUserId)
+    )
+    .map((row) => (row.sender_id === currentUserId ? row.receiver_id : row.sender_id))
+}
+
 function isMissingRelationError(err: unknown) {
   return isMissingSupabaseRelationError(err, SOCIAL_RELATIONS)
 }
@@ -79,7 +89,7 @@ function isSocialSetupError(err: unknown) {
 }
 
 function socialSetupMessage() {
-  return 'Friends are not ready on this account yet.'
+  return 'Friends are not set up in Supabase yet. Run the social graph migration for this project.'
 }
 
 export function SocialProvider({ children }: { children: ReactNode }) {
@@ -198,11 +208,13 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       if (friendshipError) throw friendshipError
       if (requestError) throw requestError
 
-      const friendIds = Array.from(
-        new Set((friendshipRows ?? []).map((row) => row.friend_id as string).filter(Boolean))
-      )
-
       const requestRecords = (requestRows ?? []) as FriendRequestRecord[]
+      const friendIds = Array.from(
+        new Set([
+          ...(friendshipRows ?? []).map((row) => row.friend_id as string).filter(Boolean),
+          ...getFriendIdsFromRequests(requestRecords, currentProfile.id),
+        ])
+      )
       const relatedProfileIds = Array.from(
         new Set(
           [
@@ -462,10 +474,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
             ? targetRequest.receiver_id
             : targetRequest.sender_id
 
-        const { error: friendshipInsertError } = await supabase.from('friendships').upsert([
-          { user_id: currentProfile.id, friend_id: friendId },
-          { user_id: friendId, friend_id: currentProfile.id },
-        ])
+        const { error: friendshipInsertError } = await supabase
+          .from('friendships')
+          .upsert({ user_id: currentProfile.id, friend_id: friendId })
 
         if (friendshipInsertError) {
           if (isSocialSetupError(friendshipInsertError)) {
