@@ -56,7 +56,7 @@ function getOAuthRedirectUrl() {
     throw new Error('Missing app URL for Google sign-in.')
   }
 
-  return `${baseUrl}/auth`
+  return baseUrl
 }
 
 function profileKey(userId: string) {
