@@ -4,7 +4,10 @@ import { read, remove, write } from '../lib/storage'
 import { daysBetween, uid } from '../lib/utils'
 import { useAuth } from './AuthContext'
 import {
+  clearSupabaseRelationStatus,
+  hasKnownUnavailableSupabaseRelations,
   isMissingSupabaseRelationError,
+  markSupabaseRelationsUnavailable,
   supabase,
   supabaseEnabled,
 } from '../lib/supabase'
@@ -179,6 +182,24 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
         : []
       const metadataPet = normalizePetState(metadataState.pet)
 
+      if (hasKnownUnavailableSupabaseRelations([APP_STATE_TABLE])) {
+        const nextCheckIns = localCheckIns.length > 0 ? localCheckIns : metadataCheckIns
+        const nextTodos = localTodos.length > 0 ? localTodos : metadataTodos
+        const nextPet =
+          JSON.stringify(localPet) !== JSON.stringify(DEFAULT_PET) ? localPet : metadataPet
+
+        setCheckIns(nextCheckIns)
+        setTodos(nextTodos)
+        setPet(nextPet)
+        lastSyncedStateRef.current = JSON.stringify({
+          checkIns: nextCheckIns,
+          todos: nextTodos,
+          pet: nextPet,
+        })
+        remoteHydratedRef.current = true
+        return
+      }
+
       try {
         const { data, error } = await supabase
           .from(APP_STATE_TABLE)
@@ -224,6 +245,7 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
           })
         }
 
+        clearSupabaseRelationStatus([APP_STATE_TABLE])
         remove('checkIns')
         remove('todos')
         remove('pet')
@@ -231,6 +253,7 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         if (!active) return
         if (!isMissingAppStateTableError(error)) throw error
+        markSupabaseRelationsUnavailable([APP_STATE_TABLE])
 
         const nextCheckIns = localCheckIns.length > 0 ? localCheckIns : metadataCheckIns
         const nextTodos = localTodos.length > 0 ? localTodos : metadataTodos
@@ -256,6 +279,7 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!supabaseEnabled || !supabase || !profile?.id || !remoteHydratedRef.current) return
+    if (hasKnownUnavailableSupabaseRelations([APP_STATE_TABLE])) return
 
     const nextState = JSON.stringify({ checkIns, todos, pet })
     if (nextState === lastSyncedStateRef.current) return
@@ -275,7 +299,14 @@ export function UserDataProvider({ children }: { children: React.ReactNode }) {
           pet,
         })
         .then(({ error }) => {
-          if (!error || isMissingAppStateTableError(error)) {
+          if (!error) {
+            clearSupabaseRelationStatus([APP_STATE_TABLE])
+            lastSyncedStateRef.current = nextState
+            return
+          }
+
+          if (isMissingAppStateTableError(error)) {
+            markSupabaseRelationsUnavailable([APP_STATE_TABLE])
             lastSyncedStateRef.current = nextState
           }
         })

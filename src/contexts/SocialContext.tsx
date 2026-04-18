@@ -15,7 +15,11 @@ import type {
   PublicProfile,
 } from '../types'
 import {
+  clearSupabaseRelationStatus,
+  hasKnownUnavailableSupabaseRelations,
   isMissingSupabaseRelationError,
+  isSupabasePermissionError,
+  markSupabaseRelationsUnavailable,
   supabase,
   supabaseEnabled,
 } from '../lib/supabase'
@@ -36,6 +40,7 @@ interface SocialContextValue {
 }
 
 const Ctx = createContext<SocialContextValue | null>(null)
+const SOCIAL_RELATIONS = ['profiles_public', 'friend_requests', 'friendships']
 
 function toPublicProfile(profile: Profile): PublicProfile {
   const now = new Date().toISOString()
@@ -66,11 +71,11 @@ function byGardenSize(a: PublicProfile, b: PublicProfile) {
 }
 
 function isMissingRelationError(err: unknown) {
-  return isMissingSupabaseRelationError(err, [
-    'profiles_public',
-    'friend_requests',
-    'friendships',
-  ])
+  return isMissingSupabaseRelationError(err, SOCIAL_RELATIONS)
+}
+
+function isSocialSetupError(err: unknown) {
+  return isMissingRelationError(err) || isSupabasePermissionError(err)
 }
 
 function socialSetupMessage() {
@@ -106,19 +111,25 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     if (!supabaseEnabled || !supabase) return false
     if (schemaReady) return true
     if (schemaChecked) return false
+    if (hasKnownUnavailableSupabaseRelations(SOCIAL_RELATIONS)) {
+      markSchemaMissing()
+      return false
+    }
 
     const { error: probeError } = await supabase
       .from('profiles_public')
       .select('user_id', { count: 'exact', head: true })
 
     if (probeError) {
-      if (isMissingRelationError(probeError)) {
+      if (isSocialSetupError(probeError)) {
+        markSupabaseRelationsUnavailable(SOCIAL_RELATIONS)
         markSchemaMissing()
         return false
       }
       throw probeError
     }
 
+    clearSupabaseRelationStatus(SOCIAL_RELATIONS)
     setSchemaReady(true)
     setSchemaChecked(true)
     return true
@@ -137,13 +148,15 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       .upsert(toPublicProfile(currentProfile))
 
     if (syncError) {
-      if (isMissingRelationError(syncError)) {
+      if (isSocialSetupError(syncError)) {
+        markSupabaseRelationsUnavailable(SOCIAL_RELATIONS)
         markSchemaMissing()
         return
       }
       throw syncError
     }
 
+    clearSupabaseRelationStatus(SOCIAL_RELATIONS)
     lastSyncedProfileRef.current = nextSnapshot
   }, [ensureSocialSchema, markSchemaMissing])
 
@@ -260,7 +273,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       setIncomingRequests(byNewest(nextIncoming))
       setOutgoingRequests(byNewest(nextOutgoing))
     } catch (err) {
-      if (isMissingRelationError(err)) {
+      if (isSocialSetupError(err)) {
+        markSupabaseRelationsUnavailable(SOCIAL_RELATIONS)
         markSchemaMissing()
         return
       }
@@ -290,7 +304,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
 
     const timeoutId = window.setTimeout(() => {
       void syncProfile().catch((err) => {
-        if (isMissingRelationError(err)) {
+        if (isSocialSetupError(err)) {
+          markSupabaseRelationsUnavailable(SOCIAL_RELATIONS)
           markSchemaMissing()
           return
         }
@@ -400,7 +415,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         await refresh()
         return { ok: true, message: `Friend request sent to ${normalizedEmail}.` }
       } catch (err) {
-        if (isMissingRelationError(err)) {
+        if (isSocialSetupError(err)) {
+          markSupabaseRelationsUnavailable(SOCIAL_RELATIONS)
           markSchemaMissing()
           return { ok: false, message: socialSetupMessage() }
         }
@@ -432,7 +448,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         .eq('id', requestId)
 
       if (updateError) {
-        if (isMissingRelationError(updateError)) {
+        if (isSocialSetupError(updateError)) {
+          markSupabaseRelationsUnavailable(SOCIAL_RELATIONS)
           markSchemaMissing()
           return
         }
@@ -451,7 +468,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
         ])
 
         if (friendshipInsertError) {
-          if (isMissingRelationError(friendshipInsertError)) {
+          if (isSocialSetupError(friendshipInsertError)) {
+            markSupabaseRelationsUnavailable(SOCIAL_RELATIONS)
             markSchemaMissing()
             return
           }

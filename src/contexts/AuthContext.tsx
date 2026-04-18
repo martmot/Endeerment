@@ -10,7 +10,10 @@ import type { Session, User } from '@supabase/supabase-js'
 import type { Profile } from '../types'
 import { clearAll, read, remove, write } from '../lib/storage'
 import {
+  clearSupabaseRelationStatus,
+  hasKnownUnavailableSupabaseRelations,
   isMissingSupabaseRelationError,
+  markSupabaseRelationsUnavailable,
   supabase,
   supabaseEnabled,
 } from '../lib/supabase'
@@ -33,6 +36,28 @@ const LEGACY_KEY = 'profile'
 const PROFILE_STATE_KEY = 'profile_state'
 const PROFILE_TABLE = 'profiles'
 const GOOGLE_PROVIDER_DISABLED = 'Unsupported provider: provider is not enabled'
+const configuredAppUrl = (import.meta.env.VITE_APP_URL as string | undefined)?.trim()
+
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, '')
+}
+
+function getOAuthRedirectUrl() {
+  const configuredOrigin = configuredAppUrl ? trimTrailingSlash(configuredAppUrl) : null
+  const runtimeOrigin =
+    typeof window !== 'undefined' ? trimTrailingSlash(window.location.origin) : null
+
+  // In production we prefer an explicit public app URL when available so OAuth never
+  // accidentally points at a stale local origin from older config.
+  const baseUrl =
+    !import.meta.env.DEV && configuredOrigin ? configuredOrigin : runtimeOrigin ?? configuredOrigin
+
+  if (!baseUrl) {
+    throw new Error('Missing app URL for Google sign-in.')
+  }
+
+  return `${baseUrl}/auth`
+}
 
 function profileKey(userId: string) {
   return `profile:${userId}`
@@ -129,6 +154,12 @@ async function profileFromUser(user: User) {
     return stored
   }
 
+  if (hasKnownUnavailableSupabaseRelations([PROFILE_TABLE])) {
+    write(key, stored)
+    write(LEGACY_KEY, stored)
+    return stored
+  }
+
   try {
     const { data, error } = await supabase
       .from(PROFILE_TABLE)
@@ -148,12 +179,15 @@ async function profileFromUser(user: User) {
       await upsertProfile(next)
     }
 
+    clearSupabaseRelationStatus([PROFILE_TABLE])
     remove(key)
     remove(LEGACY_KEY)
     return next
   } catch (error) {
     if (isMissingProfileTableError(error)) {
+      markSupabaseRelationsUnavailable([PROFILE_TABLE])
       write(key, stored)
+      write(LEGACY_KEY, stored)
       return stored
     }
     throw error
@@ -271,7 +305,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: `${window.location.origin}/auth`,
+            redirectTo: getOAuthRedirectUrl(),
             queryParams: {
               access_type: 'offline',
               prompt: 'select_account',
@@ -313,9 +347,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         try {
           await upsertProfile(persistedProfile)
+          clearSupabaseRelationStatus([PROFILE_TABLE])
         } catch (error) {
           if (isMissingProfileTableError(error)) {
+            markSupabaseRelationsUnavailable([PROFILE_TABLE])
             write(profileKey(persistedProfile.id), persistedProfile)
+            write(LEGACY_KEY, persistedProfile)
             return
           }
           throw error

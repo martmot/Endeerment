@@ -2,6 +2,16 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+const RELATION_STATUS_STORAGE_KEY = 'endeerment:supabase:relation-status'
+const RELATION_STATUS_TTL_MS = 12 * 60 * 60 * 1000
+
+type RelationStatusRecord = Record<
+  string,
+  {
+    unavailable: boolean
+    checkedAt: number
+  }
+>
 
 export const supabaseEnabled = Boolean(url && anonKey)
 
@@ -35,10 +45,101 @@ export function isMissingSupabaseRelationError(
   return (
     haystack.includes('pgrst205') ||
     haystack.includes('42p01') ||
+    haystack.includes('404') ||
     haystack.includes('not found') ||
     haystack.includes('does not exist') ||
     relationNames.some((name) => haystack.includes(name.toLowerCase()))
   )
+}
+
+export function isSupabasePermissionError(error: unknown) {
+  if (!error || typeof error !== 'object') return false
+
+  const maybeError = error as {
+    code?: string
+    message?: string
+    details?: string
+    hint?: string
+    status?: number
+    statusCode?: number
+  }
+
+  const haystack = [
+    maybeError.code,
+    maybeError.message,
+    maybeError.details,
+    maybeError.hint,
+    String(maybeError.status ?? ''),
+    String(maybeError.statusCode ?? ''),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  return (
+    haystack.includes('42501') ||
+    haystack.includes('403') ||
+    haystack.includes('permission denied') ||
+    haystack.includes('row-level security') ||
+    haystack.includes('violates row-level security')
+  )
+}
+
+function readRelationStatus(): RelationStatusRecord {
+  if (typeof localStorage === 'undefined') return {}
+
+  try {
+    const raw = localStorage.getItem(RELATION_STATUS_STORAGE_KEY)
+    if (!raw) return {}
+    return JSON.parse(raw) as RelationStatusRecord
+  } catch {
+    return {}
+  }
+}
+
+function writeRelationStatus(status: RelationStatusRecord) {
+  if (typeof localStorage === 'undefined') return
+
+  try {
+    localStorage.setItem(RELATION_STATUS_STORAGE_KEY, JSON.stringify(status))
+  } catch {
+    // Ignore private mode or quota issues.
+  }
+}
+
+export function hasKnownUnavailableSupabaseRelations(relationNames: string[]) {
+  const status = readRelationStatus()
+  const now = Date.now()
+
+  return relationNames.some((name) => {
+    const entry = status[name]
+    if (!entry?.unavailable) return false
+    return now - entry.checkedAt < RELATION_STATUS_TTL_MS
+  })
+}
+
+export function markSupabaseRelationsUnavailable(relationNames: string[]) {
+  const status = readRelationStatus()
+  const checkedAt = Date.now()
+
+  relationNames.forEach((name) => {
+    status[name] = { unavailable: true, checkedAt }
+  })
+
+  writeRelationStatus(status)
+}
+
+export function clearSupabaseRelationStatus(relationNames: string[]) {
+  const status = readRelationStatus()
+  let changed = false
+
+  relationNames.forEach((name) => {
+    if (!status[name]) return
+    delete status[name]
+    changed = true
+  })
+
+  if (changed) writeRelationStatus(status)
 }
 
 /**
