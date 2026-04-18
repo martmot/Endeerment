@@ -8,6 +8,7 @@ import { Card, CardBody, CardHeader, CardSub, CardTitle } from '../components/ui
 import { Button } from '../components/ui/Button'
 import { Forest } from '../components/Forest'
 import { ReflectionCard } from '../components/ReflectionCard'
+import { MAX_GARDEN_PLANTS } from '../lib/garden'
 import { daysBetween, formatDate, greetingFor } from '../lib/utils'
 import { SHOP, moodMeta } from '../lib/mock-data'
 
@@ -17,7 +18,7 @@ const WATERING_PAUSE_MS = 500
 const WATERING_RETURN_MS = 950
 
 export function Dashboard() {
-  const { profile } = useAuth()
+  const { profile, updateProfile } = useAuth()
   const {
     checkIns,
     pet,
@@ -41,6 +42,13 @@ export function Dashboard() {
   const [gardenMessage, setGardenMessage] = useState<string | null>(null)
   const [wateringPlantIds, setWateringPlantIds] = useState<string[]>([])
   const [wateringRunId, setWateringRunId] = useState(0)
+
+  function deletePlant(plantId: string) {
+    void updateProfile({
+      garden: currentProfile.garden.filter((plant) => plant.id !== plantId),
+    })
+    setGardenMessage('Plant removed from your garden.')
+  }
 
   function plantName(shopItemId: string) {
     return SHOP.find((item) => item.id === shopItemId)?.name ?? 'Garden plant'
@@ -179,7 +187,7 @@ export function Dashboard() {
                   Deer happiness: {pet.happiness}/100
                 </span>
                 <span className="rounded-md border border-slate-300 bg-paper-50 px-3 py-1 text-ink-muted">
-                  {pet.happiness >= 80 ? 'Can grow up to 3 plants' : pet.happiness >= 55 ? 'Can grow up to 2 plants' : 'Can grow 1 plant'}
+                  Garden space: {garden.length}/{MAX_GARDEN_PLANTS}
                 </span>
               </div>
               {gardenMessage && (
@@ -194,7 +202,7 @@ export function Dashboard() {
                     Nothing planted yet. Pick up a seed in the shop and it will appear here.
                   </div>
                 ) : (
-                  garden.slice(0, 4).map((plant) => (
+                  garden.map((plant) => (
                     <div
                       key={plant.id}
                       className="rounded-2xl border border-ink/10 bg-paper-50 px-4 py-3"
@@ -209,6 +217,11 @@ export function Dashboard() {
                         <div className="text-xs font-medium text-sage-700">
                           {plant.stage >= 3 ? 'Fully grown' : 'Needs water'}
                         </div>
+                      </div>
+                      <div className="mt-3 flex justify-end">
+                        <Button size="sm" variant="outline" onClick={() => deletePlant(plant.id)}>
+                          <Trash2 size={14} />
+                        </Button>
                       </div>
                     </div>
                   ))

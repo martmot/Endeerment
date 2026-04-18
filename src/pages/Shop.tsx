@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion'
 import { Check, Star } from 'lucide-react'
+import { AppMark } from '../components/AppMark'
 import { Card, CardBody, CardSub, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { MAX_GARDEN_PLANTS } from '../lib/garden'
 import { SHOP } from '../lib/mock-data'
 import { useAuth } from '../contexts/AuthContext'
 import { uid } from '../lib/utils'
@@ -15,7 +17,8 @@ export function Shop() {
 
   function buy(id: string, cost: number, kind: 'seed' | 'tree' | 'decoration') {
     const isUnique = kind === 'decoration'
-    if ((isUnique && owned.has(id)) || currentProfile.points < cost) return
+    const gardenFull = currentProfile.garden.length >= MAX_GARDEN_PLANTS
+    if ((isUnique && owned.has(id)) || currentProfile.points < cost || (!isUnique && gardenFull)) return
 
     const nextInventory = isUnique ? [...currentProfile.inventory, id] : currentProfile.inventory
     const nextGarden =
@@ -64,6 +67,10 @@ export function Shop() {
         </div>
       </header>
 
+      <div className="rounded-2xl border border-ink/10 bg-white/75 px-4 py-3 text-sm text-ink-muted">
+        Garden capacity: {currentProfile.garden.length}/{MAX_GARDEN_PLANTS} plants
+      </div>
+
       {(['seed', 'tree', 'decoration'] as const).map((kind) => (
         <section key={kind} className="space-y-3">
           <div className="flex items-baseline justify-between">
@@ -79,6 +86,7 @@ export function Shop() {
               const have = item.kind === 'decoration' && owned.has(item.id)
               const plantedCount = currentProfile.garden.filter((plant) => plant.shop_item_id === item.id).length
               const affordable = currentProfile.points >= item.cost
+              const gardenFull = item.kind !== 'decoration' && currentProfile.garden.length >= MAX_GARDEN_PLANTS
               return (
                 <motion.div
                   key={item.id}
@@ -89,8 +97,8 @@ export function Shop() {
                   <Card className="h-full">
                     <CardBody>
                       <div className="flex items-start gap-3">
-                        <div className="flex h-14 w-14 flex-none items-center justify-center rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] text-3xl">
-                          {item.emoji}
+                        <div className="flex h-14 w-14 flex-none items-center justify-center rounded-2xl border border-sage-200 bg-white/85 p-2 shadow-soft">
+                          <AppMark className="h-full w-full" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
@@ -119,11 +127,13 @@ export function Shop() {
                         <Button
                           size="sm"
                           variant={have ? 'soft' : 'primary'}
-                          disabled={have || !affordable}
+                          disabled={have || !affordable || gardenFull}
                           onClick={() => buy(item.id, item.cost, item.kind)}
                         >
                           {have
                             ? 'In your garden'
+                            : gardenFull
+                              ? 'Garden full'
                             : !affordable
                               ? 'Not enough'
                               : item.kind === 'seed'

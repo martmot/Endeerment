@@ -113,5 +113,4 @@ export interface ShopItem {
   description: string
   cost: number
   kind: 'seed' | 'tree' | 'decoration'
-  emoji: string
 }

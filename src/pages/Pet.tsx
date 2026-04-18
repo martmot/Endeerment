@@ -147,7 +147,7 @@ export function Pet() {
           </div>
 
           <div className="mt-3 grid grid-cols-3 gap-2">
-            <HabitatStat label="Bond" value={`${pet.bond}%`} accent="text-[#f3d59c]" />
+            <HabitatStat label="Bond" value={`${pet.bond}%`} accent="text-[#b7792f]" />
             <HabitatStat label="Happiness" value={`${pet.happiness}%`} accent="text-[#6d8f67]" />
             <HabitatStat label="Level" value={`Lv. ${pet.level}`} accent="text-ink" />
           </div>
