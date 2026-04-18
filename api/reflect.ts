@@ -142,6 +142,12 @@ function safeParseTodoPriorities(content: string): TodoPriorityResult {
   }
 }
 
+function parseByMode(mode: string, content: string) {
+  if (mode === 'brain_dump') return safeParseBrainDump(content)
+  if (mode === 'prioritize_todos') return safeParseTodoPriorities(content)
+  return safeParseReflection(content)
+}
+
 function mockReflection(text: string, mood: string): Reflection {
   const trimmed = text.trim().slice(0, 80)
   return {
@@ -202,6 +208,12 @@ function mockTodoPriorities(todos: string[]): TodoPriorityResult {
   }
 }
 
+function mockByMode(mode: string, text: string, mood: string, todos: string[]) {
+  if (mode === 'brain_dump') return mockBrainDump(text)
+  if (mode === 'prioritize_todos') return mockTodoPriorities(todos)
+  return mockReflection(text, mood)
+}
+
 function createSystemPrompt(mode: string) {
   if (mode === 'brain_dump') {
     return [
@@ -236,11 +248,11 @@ function createSystemPrompt(mode: string) {
     'You are a warm, supportive companion inside a wellness app called Endeerment.',
     'You are NOT a therapist or medical professional. Never diagnose or give clinical advice.',
     'Speak gently, validate feelings first, and keep responses short.',
-    'Everything you say must be grounded in the user\'s exact check-in, not generic wellness advice.',
+    "Everything you say must be grounded in the user's exact check-in, not generic wellness advice.",
     'Mention concrete details, situations, people, places, or tensions from the check-in whenever possible.',
     'Do not give generic suggestions like "breathe deeply", "drink water", or "take a walk" unless the user\'s words clearly make that relevant.',
-    'Suggestions should feel custom-made for this exact check-in and should help with the specific situation the user described.',
-    'At least 2 suggestions must directly reference the user\'s actual context, task, relationship, decision, or emotion.',
+    "Suggestions should feel custom-made for this exact check-in and should help with the specific situation the user described.",
+    "At least 2 suggestions must directly reference the user's actual context, task, relationship, decision, or emotion.",
     'If the user describes conflict, pressure, avoidance, grief, work stress, guilt, loneliness, or a hard conversation, tailor suggestions to that exact issue.',
     'Prefer suggestions like drafting a specific text, postponing a specific obligation, naming one boundary, writing one sentence, or doing one tiny action related to what they described.',
     'Write suggestions like clean todo items the user could save directly into a task list.',
@@ -249,8 +261,8 @@ function createSystemPrompt(mode: string) {
     'You MUST reply with a single valid JSON object and nothing else.',
     'Shape: {"summary": string, "reflection": string, "suggestions": [string, string, string]}',
     '- summary: one sentence distilling what the user shared, mentioning the real issue.',
-    '- reflection: 2-3 warm sentences that clearly relate to the user\'s specific situation.',
-    '- suggestions: 2-3 short practical todo-style actions, each under 14 words, and each tied to the user\'s situation.',
+    "- reflection: 2-3 warm sentences that clearly relate to the user's specific situation.",
+    "- suggestions: 2-3 short practical todo-style actions, each under 14 words, and each tied to the user's situation.",
     'Return a fresh response specific to the user.',
   ].join(' ')
 }
@@ -267,45 +279,51 @@ function createUserPrompt(mode: string, text: string, mood: string, todos: strin
   return `Mood: ${mood}\n\nCheck-in:\n${text}`
 }
 
-function parseByMode(mode: string, content: string) {
-  if (mode === 'brain_dump') return safeParseBrainDump(content)
-  if (mode === 'prioritize_todos') return safeParseTodoPriorities(content)
-  return safeParseReflection(content)
+type RequestLike = {
+  method?: string
+  body?: unknown
 }
 
-function mockByMode(mode: string, text: string, mood: string, todos: string[]) {
-  if (mode === 'brain_dump') return mockBrainDump(text)
-  if (mode === 'prioritize_todos') return mockTodoPriorities(todos)
-  return mockReflection(text, mood)
+type ResponseLike = {
+  status: (code: number) => ResponseLike
+  setHeader: (name: string, value: string) => void
+  json: (body: unknown) => void
+  end: (body?: string) => void
 }
 
-Deno.serve(async (req) => {
+export default async function handler(req: RequestLike, res: ResponseLike) {
+  Object.entries(corsHeaders).forEach(([name, value]) => res.setHeader(name, value))
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    res.status(200).end('ok')
+    return
   }
 
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    res.status(405).json({ error: 'Method Not Allowed' })
+    return
   }
 
   try {
-    const { text = '', mood = 'reflective', mode = 'reflect', todos = [] } =
-      await req.json().catch(() => ({}))
-    const normalizedTodos = Array.isArray(todos) ? todos.map((todo) => String(todo)) : []
-    const key = Deno.env.get('GROQ_API_KEY')
-    const model = Deno.env.get('GROQ_MODEL') || 'llama-3.3-70b-versatile'
+    const body =
+      typeof req.body === 'string'
+        ? JSON.parse(req.body || '{}')
+        : (req.body as Record<string, unknown> | null) ?? {}
+
+    const text = String(body.text ?? '')
+    const mood = String(body.mood ?? 'reflective')
+    const mode = String(body.mode ?? 'reflect')
+    const todos = Array.isArray(body.todos) ? body.todos.map((todo) => String(todo)) : []
+    const key = process.env.GROQ_API_KEY
+    const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 
     if (!key) {
-      return new Response(JSON.stringify(mockByMode(mode, text, mood, normalizedTodos)), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      res.status(200).json(mockByMode(mode, text, mood, todos))
+      return
     }
 
     const systemPrompt = createSystemPrompt(mode)
-    const userPrompt = createUserPrompt(mode, text, mood, normalizedTodos)
+    const userPrompt = createUserPrompt(mode, text, mood, todos)
 
     async function callGroq(useJsonMode: boolean) {
       return fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -326,40 +344,26 @@ Deno.serve(async (req) => {
       })
     }
 
-    let groqResponse = await callGroq(true)
-    if (!groqResponse.ok) groqResponse = await callGroq(false)
+    let response = await callGroq(true)
+    if (!response.ok) response = await callGroq(false)
 
-    if (!groqResponse.ok) {
-      const detail = await groqResponse.text().catch(() => '')
-      return new Response(
-        JSON.stringify({
-          error: 'groq_upstream_error',
-          status: groqResponse.status,
-          detail: detail.slice(0, 500),
-        }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      )
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '')
+      res.status(502).json({
+        error: 'groq_upstream_error',
+        status: response.status,
+        detail: detail.slice(0, 500),
+      })
+      return
     }
 
-    const data = await groqResponse.json()
+    const data = await response.json()
     const content = String(data?.choices?.[0]?.message?.content ?? '{}')
-
-    return new Response(JSON.stringify(parseByMode(mode, content)), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    res.status(200).json(parseByMode(mode, content))
   } catch (error) {
-    return new Response(
-      JSON.stringify({
-        error: 'internal',
-        detail: String(error instanceof Error ? error.message : error),
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
+    res.status(500).json({
+      error: 'internal',
+      detail: String(error instanceof Error ? error.message : error),
+    })
   }
-})
+}

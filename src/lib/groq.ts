@@ -75,12 +75,45 @@ async function invokeLocalReflection(args: {
   return payload
 }
 
+async function tryLocalReflection(args: {
+  text: string
+  mood?: string
+  mode?: string
+  todos?: string[]
+}): Promise<unknown | null> {
+  try {
+    return await invokeLocalReflection(args)
+  } catch (error) {
+    const details = String(error instanceof Error ? error.message : error)
+
+    if (
+      details.includes('(404)') ||
+      details.includes('(405)') ||
+      details.includes('Failed to fetch') ||
+      details.toLowerCase().includes('network')
+    ) {
+      return null
+    }
+
+    throw error
+  }
+}
+
 /**
  * Reflection uses the hosted function first and falls back to the local route when needed.
  */
 export async function requestReflection(args: {
   text: string
 }): Promise<Reflection> {
+  try {
+    const localResult = await tryLocalReflection(args)
+    if (localResult) return normalizeReflection(localResult)
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : 'Reflection request failed.'
+    )
+  }
+
   try {
     const supabaseResult = await invokeSupabaseReflection(args)
     if (supabaseResult) return normalizeReflection(supabaseResult)
@@ -146,6 +179,15 @@ export async function requestBrainDumpTodos(args: {
   const payload = { text: args.text, mode: 'brain_dump' }
 
   try {
+    const localResult = await tryLocalReflection(payload)
+    if (localResult) return normalizeBrainDumpResult(localResult)
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : 'Brain dump request failed.'
+    )
+  }
+
+  try {
     const supabaseResult = await invokeSupabaseReflection(payload)
     if (supabaseResult) return normalizeBrainDumpResult(supabaseResult)
   } catch (error) {
@@ -169,6 +211,15 @@ export async function requestTodoPriorities(args: {
   todos: string[]
 }): Promise<TodoPriorityResult> {
   const payload = { text: '', todos: args.todos, mode: 'prioritize_todos' }
+
+  try {
+    const localResult = await tryLocalReflection(payload)
+    if (localResult) return normalizeTodoPriorityResult(localResult)
+  } catch (error) {
+    throw new Error(
+      error instanceof Error ? error.message : 'Todo prioritization failed.'
+    )
+  }
 
   try {
     const supabaseResult = await invokeSupabaseReflection(payload)
