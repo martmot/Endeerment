@@ -32,18 +32,18 @@ export function Neighbourhood() {
     : 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       <header>
         <div className="text-xs uppercase tracking-[0.16em] text-ink-muted">Shared clearings</div>
-        <h1 className="mt-1 font-display text-4xl leading-tight tracking-tight text-ink md:text-5xl">
+        <h1 className="mt-1 font-display text-3xl leading-tight tracking-tight text-ink sm:text-4xl md:text-5xl">
           Neighbourhood
         </h1>
-        <p className="mt-1.5 max-w-2xl text-ink-muted">
+        <p className="mt-2 max-w-2xl text-sm text-ink-muted sm:text-base">
           See how your friends are tending their spaces, glance at a few stats, and visit their gardens when you want a little company.
         </p>
       </header>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <MiniStat
           icon={<Trees size={16} />}
           label="Connected gardens"
@@ -60,6 +60,7 @@ export function Neighbourhood() {
           icon={<Trophy size={16} />}
           label="Average streak"
           value={`${averageStreak} days`}
+          className="sm:col-span-2 xl:col-span-1"
           detail={friends.length === 0 ? 'No streak data yet.' : `Highest forest level is ${highestLevel}.`}
         />
       </div>
@@ -81,13 +82,13 @@ export function Neighbourhood() {
           </CardBody>
         </Card>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-          <Card>
+        <div className="grid gap-6 lg:grid-cols-[minmax(18rem,0.88fr)_minmax(0,1.12fr)] lg:items-start">
+          <Card className="lg:sticky lg:top-6">
             <CardHeader>
               <CardTitle>Nearby friends</CardTitle>
               <CardSub className="mt-1">Choose someone to visit.</CardSub>
             </CardHeader>
-            <CardBody className="space-y-3">
+            <CardBody className="grid gap-3 md:grid-cols-2 lg:block lg:max-h-[42rem] lg:space-y-3 lg:overflow-y-auto">
               {friends.map((friend) => {
                 const active = friend.user_id === selectedFriend?.user_id
                 return (
@@ -95,31 +96,35 @@ export function Neighbourhood() {
                     key={friend.user_id}
                     type="button"
                     onClick={() => setSearchParams({ friend: friend.user_id })}
-                    className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                    className={`w-full rounded-2xl border px-4 py-3 text-left transition min-h-[8.75rem] ${
                       active
                         ? 'border-sage-400 bg-[linear-gradient(180deg,#f4fbf2,#eaf4e8)] shadow-soft'
                         : 'border-slate-300 bg-white/85 hover:border-sage-300 hover:bg-paper-50'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold text-ink">{friend.display_name}</div>
-                        <div className="mt-1 text-xs text-ink-muted">{friend.email}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="line-clamp-2 text-sm font-semibold text-ink">
+                          {friend.display_name}
+                        </div>
+                        <div className="mt-1 truncate text-xs text-ink-muted sm:break-all">
+                          {friend.email}
+                        </div>
                       </div>
                       {active && (
-                        <span className="rounded-full bg-sage-100 px-2.5 py-1 text-[11px] font-medium text-sage-800">
+                        <span className="shrink-0 rounded-full bg-sage-100 px-2.5 py-1 text-[11px] font-medium text-sage-800">
                           Viewing
                         </span>
                       )}
                     </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-ink-muted">
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-ink-muted sm:grid-cols-3">
                       <span className="rounded-xl border border-slate-300 bg-white/70 px-2.5 py-2">
                         Lvl {friend.forest_level}
                       </span>
                       <span className="rounded-xl border border-slate-300 bg-white/70 px-2.5 py-2">
                         {friend.streak} day streak
                       </span>
-                      <span className="rounded-xl border border-slate-300 bg-white/70 px-2.5 py-2">
+                      <span className="col-span-2 rounded-xl border border-slate-300 bg-white/70 px-2.5 py-2 sm:col-span-1">
                         {friend.garden.length} plants
                       </span>
                     </div>
@@ -139,22 +144,22 @@ export function Neighbourhood() {
                   petHappiness={72}
                   petMood="curious"
                   petName={`${selectedFriend.display_name}'s deer`}
-                  height={340}
+                  height={300}
                   className="rounded-xl"
                 />
                 <div className="absolute inset-x-0 bottom-0 h-16 rounded-b-xl bg-gradient-to-t from-white/28 to-transparent" />
-                <div className="absolute left-4 top-4 rounded-2xl border border-slate-300 bg-white/92 px-4 py-3 shadow-soft">
+                <div className="absolute left-3 right-3 top-3 rounded-2xl border border-slate-300 bg-white/92 px-4 py-3 shadow-soft backdrop-blur-sm sm:left-4 sm:right-auto sm:top-4 sm:max-w-sm">
                   <div className="text-[10px] uppercase tracking-[0.16em] text-ink-muted">
                     Visiting garden
                   </div>
-                  <div className="mt-1 font-display text-2xl tracking-tight text-ink">
+                  <div className="mt-1 font-display text-xl tracking-tight text-ink sm:text-2xl">
                     {selectedFriend.display_name}
                   </div>
-                  <div className="mt-1 text-sm text-ink-muted">{selectedFriend.email}</div>
+                  <div className="mt-1 break-all text-sm text-ink-muted">{selectedFriend.email}</div>
                 </div>
               </div>
 
-              <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.1fr_0.9fr]">
+              <div className="grid gap-6 px-4 py-5 sm:px-6 sm:py-6 xl:grid-cols-[1.1fr_0.9fr]">
                 <div className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-3">
                     <GardenStat label="Forest level" value={`${selectedFriend.forest_level}`} />
@@ -175,8 +180,11 @@ export function Neighbourhood() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <CardTitle className="text-base">Recent details</CardTitle>
+                <div className="grid gap-3 sm:grid-cols-2 xl:block xl:space-y-3">
+                  <div>
+                    <CardTitle className="text-base">Recent details</CardTitle>
+                    <CardSub className="mt-1">A quick look at how this clearing is doing.</CardSub>
+                  </div>
                   <div className="rounded-2xl border border-slate-300 bg-white/88 px-4 py-3">
                     <div className="text-[10px] uppercase tracking-[0.16em] text-ink-muted">
                       Last check-in
@@ -201,7 +209,7 @@ export function Neighbourhood() {
                   </div>
                   <Button
                     variant="soft"
-                    className="w-full justify-center"
+                    className="w-full justify-center sm:col-span-2 xl:w-auto"
                     onClick={() => setSearchParams({ friend: selectedFriend.user_id })}
                   >
                     Keep exploring this garden
@@ -221,14 +229,16 @@ function MiniStat({
   label,
   value,
   detail,
+  className,
 }: {
   icon: React.ReactNode
   label: string
   value: string
   detail: string
+  className?: string
 }) {
   return (
-    <Card>
+    <Card className={className}>
       <CardBody className="pt-6">
         <div className="text-sage-700">{icon}</div>
         <div className="mt-3 text-[10px] uppercase tracking-[0.16em] text-ink-muted">{label}</div>

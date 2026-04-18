@@ -101,7 +101,7 @@ export function Dashboard() {
                 ],
               }}
               transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
-              className="inline-block bg-gradient-to-r from-amber-500 via-amber-300 to-sage-500 bg-clip-text text-transparent"
+              className="inline-block text-inherit"
             >
               {firstName}
             </motion.span>
