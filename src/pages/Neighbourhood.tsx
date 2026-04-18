@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Eye, Sprout, Trees, Trophy } from 'lucide-react'
@@ -33,7 +34,11 @@ export function Neighbourhood() {
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <header>
+      <motion.header
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+      >
         <div className="text-xs uppercase tracking-[0.16em] text-ink-muted">Shared clearings</div>
         <h1 className="mt-1 font-display text-3xl leading-tight tracking-tight text-ink sm:text-4xl md:text-5xl">
           Neighbourhood
@@ -41,9 +46,14 @@ export function Neighbourhood() {
         <p className="mt-2 max-w-2xl text-sm text-ink-muted sm:text-base">
           See how your friends are tending their spaces, glance at a few stats, and visit their gardens when you want a little company.
         </p>
-      </header>
+      </motion.header>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}
+        className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+      >
         <MiniStat
           icon={<Trees size={16} />}
           label="Connected gardens"
@@ -63,38 +73,64 @@ export function Neighbourhood() {
           className="sm:col-span-2 xl:col-span-1"
           detail={friends.length === 0 ? 'No streak data yet.' : `Highest forest level is ${highestLevel}.`}
         />
-      </div>
+      </motion.div>
 
       {!socialEnabled ? (
-        <Card>
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+        >
+          <Card>
           <CardBody className="pt-6 text-sm text-amber-900">
             {error ?? 'Neighbourhood is not available right now.'}
           </CardBody>
-        </Card>
+          </Card>
+        </motion.div>
       ) : loading ? (
-        <Card>
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+        >
+          <Card>
           <CardBody className="pt-6 text-sm text-ink-muted">Loading neighbourhood…</CardBody>
-        </Card>
+          </Card>
+        </motion.div>
       ) : friends.length === 0 ? (
-        <Card>
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+        >
+          <Card>
           <CardBody className="pt-6 text-sm text-ink-muted">
             Your neighbourhood is empty right now. Add a friend by email first and their garden will show up here.
           </CardBody>
-        </Card>
+          </Card>
+        </motion.div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(18rem,0.88fr)_minmax(0,1.12fr)] lg:items-start">
-          <Card className="lg:sticky lg:top-6">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+          >
+            <Card className="lg:sticky lg:top-6">
             <CardHeader>
               <CardTitle>Nearby friends</CardTitle>
               <CardSub className="mt-1">Choose someone to visit.</CardSub>
             </CardHeader>
             <CardBody className="grid gap-3 md:grid-cols-2 lg:block lg:max-h-[42rem] lg:space-y-3 lg:overflow-y-auto">
-              {friends.map((friend) => {
+              {friends.map((friend, index) => {
                 const active = friend.user_id === selectedFriend?.user_id
                 return (
-                  <button
+                  <motion.button
                     key={friend.user_id}
                     type="button"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.24, delay: Math.min(index, 6) * 0.03 }}
                     onClick={() => setSearchParams({ friend: friend.user_id })}
                     className={`w-full rounded-2xl border px-4 py-3 text-left transition min-h-[8.75rem] ${
                       active
@@ -128,14 +164,21 @@ export function Neighbourhood() {
                         {friend.garden.length} plants
                       </span>
                     </div>
-                  </button>
+                  </motion.button>
                 )
               })}
             </CardBody>
-          </Card>
+            </Card>
+          </motion.div>
 
           {selectedFriend && (
-            <Card className="overflow-hidden p-0">
+            <motion.div
+              key={selectedFriend.user_id}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.42, delay: 0.14, ease: 'easeOut' }}
+            >
+              <Card className="overflow-hidden p-0">
               <div className="relative">
                 <Forest
                   level={selectedFriend.forest_level}
@@ -216,7 +259,8 @@ export function Neighbourhood() {
                   </Button>
                 </div>
               </div>
-            </Card>
+              </Card>
+            </motion.div>
           )}
         </div>
       )}

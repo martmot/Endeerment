@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Clock3, MailPlus, Trees, UserCheck, Users } from 'lucide-react'
@@ -35,7 +36,12 @@ export function Friends() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <motion.header
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        className="flex flex-wrap items-end justify-between gap-4"
+      >
         <div>
           <div className="text-xs uppercase tracking-[0.16em] text-ink-muted">Social garden</div>
           <h1 className="mt-1 font-display text-4xl leading-tight tracking-tight text-ink md:text-5xl">
@@ -50,9 +56,14 @@ export function Friends() {
             <Trees size={16} /> Open neighbourhood
           </Button>
         </Link>
-      </header>
+      </motion.header>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}
+        className="grid gap-3 md:grid-cols-3"
+      >
         <StatTile
           icon={<Users size={16} />}
           label="Friends"
@@ -71,9 +82,14 @@ export function Friends() {
           value={`${outgoingRequests.length}`}
           detail="Requests you already sent."
         />
-      </div>
+      </motion.div>
 
-      <Card>
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+      >
+        <Card>
         <CardHeader>
           <CardTitle>Add a friend by email</CardTitle>
           <CardSub className="mt-1">
@@ -107,10 +123,16 @@ export function Friends() {
             </div>
           )}
         </CardBody>
-      </Card>
+        </Card>
+      </motion.div>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card>
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.14, ease: 'easeOut' }}
+        >
+          <Card>
           <CardHeader>
             <CardTitle>Your friends</CardTitle>
             <CardSub className="mt-1">
@@ -124,8 +146,11 @@ export function Friends() {
               <EmptyMessage>No friends yet. Send your first request above.</EmptyMessage>
             ) : (
               friends.map((friend) => (
-                <div
+                <motion.div
                   key={friend.user_id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.24, delay: 0.02 }}
                   className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-300 bg-white/85 px-4 py-3"
                 >
                   <div>
@@ -148,13 +173,19 @@ export function Friends() {
                       Visit garden
                     </Button>
                   </Link>
-                </div>
+                </motion.div>
               ))
             )}
           </CardBody>
-        </Card>
+          </Card>
+        </motion.div>
 
-        <div className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.18, ease: 'easeOut' }}
+          className="space-y-6"
+        >
           <Card>
             <CardHeader>
               <CardTitle>Incoming requests</CardTitle>
@@ -164,9 +195,12 @@ export function Friends() {
               {incomingRequests.length === 0 ? (
                 <EmptyMessage>No incoming requests right now.</EmptyMessage>
               ) : (
-                incomingRequests.map((request) => (
-                  <div
+                incomingRequests.map((request, index) => (
+                  <motion.div
                     key={request.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.24, delay: Math.min(index, 5) * 0.03 }}
                     className="rounded-2xl border border-slate-300 bg-white/85 px-4 py-3"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -194,7 +228,7 @@ export function Friends() {
                         </Button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))
               )}
             </CardBody>
@@ -209,9 +243,12 @@ export function Friends() {
               {outgoingRequests.length === 0 ? (
                 <EmptyMessage>No pending invites.</EmptyMessage>
               ) : (
-                outgoingRequests.map((request) => (
-                  <div
+                outgoingRequests.map((request, index) => (
+                  <motion.div
                     key={request.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.24, delay: Math.min(index, 5) * 0.03 }}
                     className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-300 bg-white/85 px-4 py-3"
                   >
                     <div>
@@ -232,12 +269,12 @@ export function Friends() {
                     >
                       Cancel
                     </Button>
-                  </div>
+                  </motion.div>
                 ))
               )}
             </CardBody>
           </Card>
-        </div>
+        </motion.div>
       </div>
     </div>
   )
